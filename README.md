@@ -1,8 +1,6 @@
 # daily-check-in
 
-A macOS LaunchAgent that sends a daily ping to the Claude API to keep your usage counter active.
-
-Fires at: **08:00, 12:30, 17:00, 21:30**
+**daily-check-in** is good for keeping your Claude usage counter active without manual intervention. It installs a macOS LaunchAgent that silently pings the Claude API four times a day (08:00, 12:30, 17:00, 21:30) using `claude -p "Hi"` — no session created, no interaction required. Useful if your plan resets based on activity and you want to avoid hitting a cold counter mid-work. Set it up once with `./install.sh` and forget it.
 
 ## Install
 
