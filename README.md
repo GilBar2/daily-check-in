@@ -7,7 +7,7 @@ Fires at: **08:00, 12:30, 17:00, 21:30**
 ## Install
 
 ```bash
-git clone https://github.com/giltombee/daily-check-in.git
+git clone https://github.com/GilBar2/daily-check-in.git
 cd daily-check-in
 chmod +x install.sh
 ./install.sh
