@@ -1,0 +1,3 @@
+#!/bin/bash
+CLAUDE_BIN="TARGET_CLAUDE_PATH"
+$CLAUDE_BIN -p "Hi"
