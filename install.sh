@@ -9,7 +9,11 @@ if [ -z "$CLAUDE_PATH" ]; then
   exit 1
 fi
 
-sed "s|TARGET_CLAUDE_PATH|$CLAUDE_PATH|g" keep_warm.sh > "$HOME/Library/Application Support/claude-skills/keep_warm.sh"
+# Optional failure alerts: set NTFY_TOPIC in your environment before running
+# install.sh to get a phone push when a ping fails. Leave unset to disable.
+sed -e "s|TARGET_CLAUDE_PATH|$CLAUDE_PATH|g" \
+    -e "s|NTFY_TOPIC_PLACEHOLDER|${NTFY_TOPIC:-NTFY_TOPIC_PLACEHOLDER}|g" \
+    keep_warm.sh > "$HOME/Library/Application Support/claude-skills/keep_warm.sh"
 chmod +x "$HOME/Library/Application Support/claude-skills/keep_warm.sh"
 
 sed "s|SKILLS_DIR|$HOME/Library/Application Support/claude-skills|g" com.user.claudewarm.plist > "$HOME/Library/LaunchAgents/com.user.claudewarm.plist"
@@ -17,4 +21,4 @@ sed "s|SKILLS_DIR|$HOME/Library/Application Support/claude-skills|g" com.user.cl
 launchctl bootout gui/$(id -u) "$HOME/Library/LaunchAgents/com.user.claudewarm.plist" 2>/dev/null || true
 launchctl bootstrap gui/$(id -u) "$HOME/Library/LaunchAgents/com.user.claudewarm.plist"
 
-echo "Installed. Pings scheduled at 08:00, 12:30, 17:00, and 21:30."
+echo "Installed. Pings scheduled at 07:00, 08:00, 10:30, 12:30, 14:30, 17:00, 19:30, 21:30."
