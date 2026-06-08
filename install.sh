@@ -16,7 +16,10 @@ sed -e "s|TARGET_CLAUDE_PATH|$CLAUDE_PATH|g" \
     keep_warm.sh > "$HOME/Library/Application Support/claude-skills/keep_warm.sh"
 chmod +x "$HOME/Library/Application Support/claude-skills/keep_warm.sh"
 
-sed "s|SKILLS_DIR|$HOME/Library/Application Support/claude-skills|g" com.user.claudewarm.plist > "$HOME/Library/LaunchAgents/com.user.claudewarm.plist"
+mkdir -p "$HOME/Library/Logs"
+sed -e "s|SKILLS_DIR|$HOME/Library/Application Support/claude-skills|g" \
+    -e "s|LOG_DIR|$HOME/Library/Logs|g" \
+    com.user.claudewarm.plist > "$HOME/Library/LaunchAgents/com.user.claudewarm.plist"
 
 launchctl bootout gui/$(id -u) "$HOME/Library/LaunchAgents/com.user.claudewarm.plist" 2>/dev/null || true
 launchctl bootstrap gui/$(id -u) "$HOME/Library/LaunchAgents/com.user.claudewarm.plist"

@@ -62,5 +62,9 @@
     </array>
     <key>RunAtLoad</key>
     <true/>
+    <key>StandardOutPath</key>
+    <string>LOG_DIR/claudewarm.log</string>
+    <key>StandardErrorPath</key>
+    <string>LOG_DIR/claudewarm.log</string>
 </dict>
 </plist>
