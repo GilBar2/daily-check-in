@@ -5,6 +5,10 @@ CLAUDE_BIN="TARGET_CLAUDE_PATH"
 # login). Leave as the placeholder or empty to disable alerts.
 NTFY_TOPIC="NTFY_TOPIC_PLACEHOLDER"
 
+# Optional: separate ntfy topic used as a heartbeat so the cloud wake-reminder
+# workflow knows the Mac is awake. Leave as placeholder to disable.
+HEARTBEAT_TOPIC="HEARTBEAT_TOPIC_PLACEHOLDER"
+
 OUTPUT=$("$CLAUDE_BIN" -p "Hi" 2>&1)
 STATUS=$?
 
@@ -21,4 +25,10 @@ if [ $STATUS -ne 0 ] || printf '%s' "$OUTPUT" | grep -qiE '401|authenticate'; th
       "https://ntfy.sh/$NTFY_TOPIC" >/dev/null
   fi
   exit 1
+fi
+
+# Success — log timestamp and post heartbeat so cloud reminder knows Mac is awake
+echo "$(date '+%Y-%m-%d %H:%M:%S') ping OK"
+if [ -n "$HEARTBEAT_TOPIC" ] && [ "$HEARTBEAT_TOPIC" != "HEARTBEAT_TOPIC_PLACEHOLDER" ]; then
+  curl -s -d "awake" "https://ntfy.sh/$HEARTBEAT_TOPIC" >/dev/null
 fi

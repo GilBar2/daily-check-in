@@ -1,0 +1,38 @@
+name: Wake Reminder
+
+# Fires at these IDT times (UTC+3): 09:30, 09:50, 10:30, 10:50, 11:30, 11:50, 12:30
+# Each run checks the heartbeat topic — if the Mac already checked in today, stays silent.
+on:
+  schedule:
+    - cron: '30 6 * * *'   # 09:30 IDT
+    - cron: '50 6 * * *'   # 09:50 IDT
+    - cron: '30 7 * * *'   # 10:30 IDT
+    - cron: '50 7 * * *'   # 10:50 IDT
+    - cron: '30 8 * * *'   # 11:30 IDT
+    - cron: '50 8 * * *'   # 11:50 IDT
+    - cron: '30 9 * * *'   # 12:30 IDT
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check heartbeat and send reminder if Mac is still asleep
+        env:
+          NTFY_ALERT_TOPIC: ${{ secrets.NTFY_ALERT_TOPIC }}
+          NTFY_HEARTBEAT_TOPIC: ${{ secrets.NTFY_HEARTBEAT_TOPIC }}
+        run: |
+          # Check for a heartbeat since midnight UTC (= 03:00 IDT — before any wake time)
+          SINCE=$(date -d "today 00:00" +%s)
+          MESSAGES=$(curl -s "https://ntfy.sh/${NTFY_HEARTBEAT_TOPIC}/json?poll=1&since=${SINCE}" 2>/dev/null)
+
+          if echo "$MESSAGES" | grep -q '"event":"message"'; then
+            echo "Heartbeat found — Mac is awake. No reminder needed."
+          else
+            echo "No heartbeat today — sending wake reminder."
+            curl -s \
+              -H "Title: Wake the laptop" \
+              -H "Priority: high" \
+              -H "Tags: alarm_clock" \
+              -d "Wake the laptop for daily check-in ☀️" \
+              "https://ntfy.sh/${NTFY_ALERT_TOPIC}"
+          fi

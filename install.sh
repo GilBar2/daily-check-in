@@ -9,10 +9,12 @@ if [ -z "$CLAUDE_PATH" ]; then
   exit 1
 fi
 
-# Optional failure alerts: set NTFY_TOPIC in your environment before running
-# install.sh to get a phone push when a ping fails. Leave unset to disable.
+# Optional failure alerts: set NTFY_TOPIC in your environment before running.
+# Set HEARTBEAT_TOPIC for the cloud wake-reminder to detect Mac wake-up.
+# Leave either unset to disable that feature.
 sed -e "s|TARGET_CLAUDE_PATH|$CLAUDE_PATH|g" \
     -e "s|NTFY_TOPIC_PLACEHOLDER|${NTFY_TOPIC:-NTFY_TOPIC_PLACEHOLDER}|g" \
+    -e "s|HEARTBEAT_TOPIC_PLACEHOLDER|${HEARTBEAT_TOPIC:-HEARTBEAT_TOPIC_PLACEHOLDER}|g" \
     keep_warm.sh > "$HOME/Library/Application Support/claude-skills/keep_warm.sh"
 chmod +x "$HOME/Library/Application Support/claude-skills/keep_warm.sh"
 
