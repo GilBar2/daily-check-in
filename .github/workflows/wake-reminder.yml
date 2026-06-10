@@ -1,28 +1,51 @@
 name: Wake Reminder
 
-# Fires at these IDT times (UTC+3): 09:30, 09:50, 10:30, 10:50, 11:30, 11:50, 12:30
-# Each run checks the heartbeat topic — if the Mac already checked in today, stays silent.
+# Runs every 10 minutes. Checks if local time (in TIMEZONE variable) matches
+# a target time. To travel: update the TIMEZONE repo variable — no other changes needed.
 on:
   schedule:
-    - cron: '30 6 * * *'   # 09:30 IDT
-    - cron: '50 6 * * *'   # 09:50 IDT
-    - cron: '30 7 * * *'   # 10:30 IDT
-    - cron: '50 7 * * *'   # 10:50 IDT
-    - cron: '30 8 * * *'   # 11:30 IDT
-    - cron: '50 8 * * *'   # 11:50 IDT
-    - cron: '30 9 * * *'   # 12:30 IDT
+    - cron: '*/10 * * * *'
 
 jobs:
   remind:
     runs-on: ubuntu-latest
     steps:
-      - name: Check heartbeat and send reminder if Mac is still asleep
+      - name: Check time, heartbeat, and send reminder if needed
         env:
           NTFY_ALERT_TOPIC: ${{ secrets.NTFY_ALERT_TOPIC }}
           NTFY_HEARTBEAT_TOPIC: ${{ secrets.NTFY_HEARTBEAT_TOPIC }}
+          TIMEZONE: ${{ vars.TIMEZONE }}
         run: |
-          # Check for a heartbeat since midnight UTC (= 03:00 IDT — before any wake time)
-          SINCE=$(date -d "today 00:00" +%s)
+          # Target local times to nag (HH:MM, 24h)
+          TARGETS="09:30 09:50 10:30 10:50 11:30 11:50 12:30"
+
+          # Round current local time DOWN to the nearest 10-minute bucket.
+          # e.g. 09:31 → 09:30, 09:39 → 09:30, 09:41 → 09:40
+          LOCAL_HH=$(TZ="$TIMEZONE" date +%H)
+          LOCAL_MM=$(TZ="$TIMEZONE" date +%M)
+          BUCKET=$(( (10#$LOCAL_MM / 10) * 10 ))
+          BUCKET_TIME=$(printf "%02d:%02d" "$LOCAL_HH" "$BUCKET")
+
+          echo "Local time bucket: $BUCKET_TIME (TZ=$TIMEZONE)"
+
+          # Check if this bucket matches a target
+          HIT=0
+          for T in $TARGETS; do
+            if [ "$BUCKET_TIME" = "$T" ]; then
+              HIT=1
+              break
+            fi
+          done
+
+          if [ "$HIT" -eq 0 ]; then
+            echo "Not a reminder window. Skipping."
+            exit 0
+          fi
+
+          echo "Reminder window hit: $BUCKET_TIME"
+
+          # Check for today's heartbeat (since midnight local time)
+          SINCE=$(TZ="$TIMEZONE" date -d "today 00:00" +%s)
           MESSAGES=$(curl -s "https://ntfy.sh/${NTFY_HEARTBEAT_TOPIC}/json?poll=1&since=${SINCE}" 2>/dev/null)
 
           if echo "$MESSAGES" | grep -q '"event":"message"'; then
