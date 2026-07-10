@@ -17,6 +17,14 @@ Requires [Claude Code](https://claude.ai/code) to be installed and authenticated
 
 `keep_warm.sh` runs `claude -p "Hi"` — a single non-interactive API call. No session is created. The LaunchAgent (`com.user.claudewarm.plist`) schedules it via macOS `launchd`.
 
+## Wake reminder (optional)
+
+If the Mac is asleep during check-in times, the LaunchAgent can't fire. `.github/workflows/wake-reminder.yml` runs in GitHub Actions (in the cloud, independent of the Mac) and nags your phone via [ntfy.sh](https://ntfy.sh) when that happens.
+
+It fires at fixed times — 09:30, 09:50, 10:30, 10:50, 11:30, 11:50, 12:30 (Asia/Jerusalem) — and before each nag, checks whether `keep_warm.sh` already posted a "heartbeat" to ntfy today. If a check-in already succeeded, it stays silent; otherwise it pushes "Wake the laptop for daily check-in" to your phone.
+
+Requires two repo secrets (`NTFY_ALERT_TOPIC`, `NTFY_HEARTBEAT_TOPIC`) and enables `HEARTBEAT_TOPIC` in `keep_warm.sh`. To change the timezone the reminder times are anchored to, run `./set-timezone.sh <IANA_timezone>` (e.g. `./set-timezone.sh Europe/London`) — it recalculates the UTC cron entries and pushes the update.
+
 ## Uninstall
 
 ```bash
