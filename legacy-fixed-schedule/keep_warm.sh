@@ -9,28 +9,7 @@ NTFY_TOPIC="NTFY_TOPIC_PLACEHOLDER"
 # workflow knows the Mac is awake. Leave as placeholder to disable.
 HEARTBEAT_TOPIC="HEARTBEAT_TOPIC_PLACEHOLDER"
 
-# Tracks the epoch timestamp of the last successful ping (i.e. the last time
-# we know a fresh 5-hour usage window was opened). Claude's usage window is
-# fixed from the first prompt in it — later prompts inside an active window
-# don't extend or reset it — so there's no point pinging more than once per
-# window. This script runs frequently (see plist) and only actually calls
-# Claude once the previous window should have expired.
-STATE_FILE="SKILLS_DIR/last_ping"
-WINDOW_SECONDS=18000  # 5 hours
-
-NOW=$(date +%s)
-LAST=0
-if [ -f "$STATE_FILE" ]; then
-  LAST=$(cat "$STATE_FILE" 2>/dev/null || echo 0)
-fi
-
-ELAPSED=$((NOW - LAST))
-if [ "$ELAPSED" -lt "$WINDOW_SECONDS" ]; then
-  # Previous window is still active — pinging now would be wasted quota.
-  exit 0
-fi
-
-OUTPUT=$("$CLAUDE_BIN" --model haiku -p "Reply with a single word: OK" 2>&1)
+OUTPUT=$("$CLAUDE_BIN" -p "Hi" 2>&1)
 STATUS=$?
 
 # Treat a non-zero exit OR an auth error in the output as a failure. The CLI
@@ -45,14 +24,11 @@ if [ $STATUS -ne 0 ] || printf '%s' "$OUTPUT" | grep -qiE '401|authenticate'; th
       -d "Claude ping failed. Re-login: claude auth logout && claude auth login" \
       "https://ntfy.sh/$NTFY_TOPIC" >/dev/null
   fi
-  # Don't update STATE_FILE — a failed ping never opened a window, so the
-  # next check should retry rather than waiting another 5 hours.
   exit 1
 fi
 
-# Success — this ping opened a fresh window. Record it, log, and heartbeat.
-echo "$NOW" > "$STATE_FILE"
-echo "$(date '+%Y-%m-%d %H:%M:%S') ping OK (new window opened)"
+# Success — log timestamp and post heartbeat so cloud reminder knows Mac is awake
+echo "$(date '+%Y-%m-%d %H:%M:%S') ping OK"
 if [ -n "$HEARTBEAT_TOPIC" ] && [ "$HEARTBEAT_TOPIC" != "HEARTBEAT_TOPIC_PLACEHOLDER" ]; then
   curl -s -d "awake" "https://ntfy.sh/$HEARTBEAT_TOPIC" >/dev/null
 fi

@@ -26,4 +26,4 @@ sed -e "s|SKILLS_DIR|$HOME/Library/Application Support/claude-skills|g" \
 launchctl bootout gui/$(id -u) "$HOME/Library/LaunchAgents/com.user.claudewarm.plist" 2>/dev/null || true
 launchctl bootstrap gui/$(id -u) "$HOME/Library/LaunchAgents/com.user.claudewarm.plist"
 
-echo "Installed. Checks every 5 minutes; pings Claude only once the previous 5-hour usage window has expired."
+echo "Installed. Pings scheduled at 08:30, 09:30, 10:30, 12:30, 14:30, 17:00, 19:30, 21:30."
