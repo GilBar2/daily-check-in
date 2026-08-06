@@ -18,6 +18,13 @@ sed -e "s|TARGET_CLAUDE_PATH|$CLAUDE_PATH|g" \
     keep_warm.sh > "$HOME/Library/Application Support/claude-skills/keep_warm.sh"
 chmod +x "$HOME/Library/Application Support/claude-skills/keep_warm.sh"
 
+# Isolated, minimal config dir for the ping (see README: "Isolated ping
+# config"). Never overwrite an existing settings.json here — it's just {}.
+mkdir -p "$HOME/Library/Application Support/claude-skills/ping-config"
+if [ ! -f "$HOME/Library/Application Support/claude-skills/ping-config/settings.json" ]; then
+  cp ping-config/settings.json "$HOME/Library/Application Support/claude-skills/ping-config/settings.json"
+fi
+
 mkdir -p "$HOME/Library/Logs"
 sed -e "s|SKILLS_DIR|$HOME/Library/Application Support/claude-skills|g" \
     -e "s|LOG_DIR|$HOME/Library/Logs|g" \

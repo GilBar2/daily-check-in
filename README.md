@@ -35,6 +35,25 @@ minutes. Each run checks whether the last window it opened has expired yet:
 No chat session is created either way, and the prompt is intentionally
 trivial to keep token usage negligible.
 
+### Isolated ping config
+
+The ping runs with `CLAUDE_CONFIG_DIR` pointed at `ping-config/` (deployed to
+`~/Library/Application Support/claude-skills/ping-config/`) instead of your
+normal `~/.claude/`. That directory holds nothing but a minimal
+`settings.json` (`{}`) — no memory index, no skills, no MCP servers, no
+hooks. It also runs with `--strict-mcp-config` (no MCP tool schemas loaded)
+and a one-line `--system-prompt` in place of the full default system prompt.
+
+This exists because the ping used to inherit your entire interactive
+`~/.claude/` config wholesale — memory index, skill descriptions, MCP tool
+schemas, and a `SessionStart` hook that expects a human to answer an
+`AskUserQuestion` prompt. In a headless ping there's nobody there to answer
+it, so it burned a second wasted round-trip on top of the ~25.8k
+cache-creation tokens from loading all that context. Isolating the ping's
+config dir cut per-ping cost from ~27,300 tokens to well under 3,000, with no
+change to your normal interactive Claude Code sessions — `~/.claude/`
+(including the `SessionStart` permission-mode hook) is untouched.
+
 **Caveat:** this only knows about windows it opened itself. If you use Claude
 directly throughout the day, those messages also open/consume windows the
 script has no visibility into — so its tracking can drift from the real

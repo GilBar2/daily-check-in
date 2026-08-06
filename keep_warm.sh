@@ -18,6 +18,12 @@ HEARTBEAT_TOPIC="HEARTBEAT_TOPIC_PLACEHOLDER"
 STATE_FILE="SKILLS_DIR/last_ping"
 WINDOW_SECONDS=18000  # 5 hours
 
+# Isolated, minimal Claude config dir for the ping only. Keeps the ping from
+# inheriting the interactive ~/.claude config (memory index, skills, MCP
+# server schemas, hooks) — that inheritance was costing ~25.8k cache-creation
+# tokens per ping for zero benefit. See ping-config/settings.json in the repo.
+PING_CONFIG_DIR="SKILLS_DIR/ping-config"
+
 NOW=$(date +%s)
 LAST=0
 if [ -f "$STATE_FILE" ]; then
@@ -30,7 +36,12 @@ if [ "$ELAPSED" -lt "$WINDOW_SECONDS" ]; then
   exit 0
 fi
 
-OUTPUT=$("$CLAUDE_BIN" --model haiku -p "Reply with a single word: OK" 2>&1)
+OUTPUT=$(CLAUDE_CONFIG_DIR="$PING_CONFIG_DIR" "$CLAUDE_BIN" \
+  --model haiku \
+  --strict-mcp-config \
+  --no-session-persistence \
+  --system-prompt "You are a health check. Reply with exactly one word." \
+  -p "Reply with a single word: OK" 2>&1)
 STATUS=$?
 
 # Treat a non-zero exit OR an auth error in the output as a failure. The CLI
