@@ -35,24 +35,55 @@ minutes. Each run checks whether the last window it opened has expired yet:
 No chat session is created either way, and the prompt is intentionally
 trivial to keep token usage negligible.
 
-### Isolated ping config
+### Why the ping runs with so many flags
 
-The ping runs with `CLAUDE_CONFIG_DIR` pointed at `ping-config/` (deployed to
-`~/Library/Application Support/claude-skills/ping-config/`) instead of your
-normal `~/.claude/`. That directory holds nothing but a minimal
-`settings.json` (`{}`) — no memory index, no skills, no MCP servers, no
-hooks. It also runs with `--strict-mcp-config` (no MCP tool schemas loaded)
-and a one-line `--system-prompt` in place of the full default system prompt.
+The ping is a one-word health check, but by default Claude Code assembles a
+full interactive context for it: your memory index, every skill description,
+all MCP tool schemas, and any `SessionStart` hook. That cost **~27,300 tokens
+to say "OK"** — and if the hook expects a human (e.g. an `AskUserQuestion`
+permission prompt), the headless ping also burns a wasted extra round-trip
+failing to answer it.
 
-This exists because the ping used to inherit your entire interactive
-`~/.claude/` config wholesale — memory index, skill descriptions, MCP tool
-schemas, and a `SessionStart` hook that expects a human to answer an
-`AskUserQuestion` prompt. In a headless ping there's nobody there to answer
-it, so it burned a second wasted round-trip on top of the ~25.8k
-cache-creation tokens from loading all that context. Isolating the ping's
-config dir cut per-ping cost from ~27,300 tokens to well under 3,000, with no
-change to your normal interactive Claude Code sessions — `~/.claude/`
-(including the `SessionStart` permission-mode hook) is untouched.
+So the ping is invoked with:
+
+| Flag | Removes |
+|---|---|
+| `--settings '{"hooks":{}}'` | hooks, for this invocation only |
+| `--disable-slash-commands` | all skill definitions |
+| `--strict-mcp-config` | all MCP tool schemas |
+| `--exclude-dynamic-system-prompt-sections` | dynamic system-prompt blocks |
+| `--system-prompt "..."` | replaces the full default system prompt |
+
+Measured 2026-08-06: **27,304 → ~1,500 tokens cold, <300 warm** (~94% less).
+Your normal interactive sessions are completely unaffected — `~/.claude/`,
+including any `SessionStart` hook, is never modified.
+
+**Do not add `--bare` or `--setting-sources ''`**, and do not run the ping
+under an isolated `CLAUDE_CONFIG_DIR`. All three were tested and each one
+independently breaks authentication (`Not logged in · Please run /login`),
+even though the credentials themselves live in the macOS Keychain.
+
+### Why the guard uses a glob
+
+The topic guards are written as `case "$NTFY_TOPIC" in ""|*PLACEHOLDER*)` and
+**not** as `[ "$NTFY_TOPIC" != "NTFY_TOPIC_PLACEHOLDER" ]`.
+
+`install.sh` substitutes the sentinel with `sed ... /g`, which rewrote *every*
+occurrence in the file — including the one inside the comparison. On any
+installed copy the guard became `[ "$topic" != "<your real topic>" ]`, which is
+always false, so **the ntfy alert and the heartbeat never fired at all.** This
+was silent: the failure path ran, the `curl` was simply skipped. Discovered and
+fixed 2026-08-06. The glob survives the `sed` because only the full literal
+sentinel is matched.
+
+### Failure alerts are throttled
+
+A failed ping costs zero tokens — the CLI gives up before it reaches the API —
+so the script keeps retrying every 5 minutes until it succeeds. But it only
+sends an ntfy alert on the **first** failure and then roughly hourly
+(`ALERT_EVERY`), tracked in a `fail_count` state file that is cleared on
+success. Without this, an expired login produced one high-priority phone
+alert every 5 minutes indefinitely.
 
 **Caveat:** this only knows about windows it opened itself. If you use Claude
 directly throughout the day, those messages also open/consume windows the
