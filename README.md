@@ -23,7 +23,7 @@ Requires [Claude Code](https://claude.ai/code) to be installed and authenticated
 
 ## How it works
 
-A macOS LaunchAgent (`com.user.claudewarm.plist`) runs `keep_warm.sh` every 5
+A macOS LaunchAgent (`com.user.claudewarm.plist`) runs `keep_warm.sh` every 15
 minutes. Each run checks whether the last window it opened has expired yet:
 
 - **Window still open** → does nothing. Pinging again wouldn't extend it, so
@@ -79,11 +79,15 @@ sentinel is matched.
 ### Failure alerts are throttled
 
 A failed ping costs zero tokens — the CLI gives up before it reaches the API —
-so the script keeps retrying every 5 minutes until it succeeds. But it only
+so the script keeps retrying on every tick until it succeeds. But it only
 sends an ntfy alert on the **first** failure and then roughly hourly
 (`ALERT_EVERY`), tracked in a `fail_count` state file that is cleared on
 success. Without this, an expired login produced one high-priority phone
-alert every 5 minutes indefinitely.
+alert on every single tick indefinitely.
+
+`ALERT_EVERY` is expressed in *ticks*, not minutes, so it must be kept in step
+with `StartInterval` in the plist — the two together should work out to about
+an hour (currently 4 ticks x 900s).
 
 **Caveat:** this only knows about windows it opened itself. If you use Claude
 directly throughout the day, those messages also open/consume windows the

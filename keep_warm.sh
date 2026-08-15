@@ -19,9 +19,12 @@ STATE_FILE="SKILLS_DIR/last_ping"
 WINDOW_SECONDS=18000  # 5 hours
 
 # Counts consecutive failures so a broken login doesn't fire an ntfy alert
-# every 5 minutes forever. Removed on success. See "alert throttle" below.
+# on every tick forever. Removed on success. See "alert throttle" below.
 FAIL_FILE="SKILLS_DIR/fail_count"
-ALERT_EVERY=12  # at a 5-min tick: alert on failure 1, then roughly hourly
+# Keep this in step with StartInterval in com.user.claudewarm.plist:
+# ALERT_EVERY * StartInterval should stay ~1 hour. At the current 900s tick,
+# 4 ticks = 1 hour.
+ALERT_EVERY=4
 
 NOW=$(date +%s)
 LAST=0
@@ -41,11 +44,17 @@ fi
 # schemas and the SessionStart hook — ~27.3k tokens to say "OK". These flags
 # cut that to ~1.5k cold and <300 warm (measured 2026-08-06).
 #
+# --no-session-persistence stops the ping writing a session transcript per
+# tick. Those are pure clutter here, and a failing ping writes one too: an
+# auth outage on 2026-08-13..15 left 350 junk transcripts in
+# ~/.claude/projects/-/ having never made a single API call.
+#
 # Do NOT add --bare or --setting-sources '': each independently breaks auth
 # ("Not logged in · Please run /login"). Running under an isolated
 # CLAUDE_CONFIG_DIR breaks auth the same way. See the PRD for the test matrix.
 OUTPUT=$("$CLAUDE_BIN" \
   --model haiku \
+  --no-session-persistence \
   --strict-mcp-config \
   --disable-slash-commands \
   --exclude-dynamic-system-prompt-sections \
@@ -68,8 +77,8 @@ if [ $STATUS -ne 0 ] || printf '%s' "$OUTPUT" | grep -qiE '401|authenticate|Not 
   echo "$FAILS" > "$FAIL_FILE"
 
   # Alert throttle: a failed ping costs no tokens (the CLI gives up before it
-  # reaches the API), so retrying every 5 min is harmless — but alerting every
-  # 5 min is not. Notify on the first failure, then roughly hourly.
+  # reaches the API), so retrying on every tick is harmless — but alerting on
+  # every tick is not. Notify on the first failure, then roughly hourly.
   if [ "$FAILS" -eq 1 ] || [ $((FAILS % ALERT_EVERY)) -eq 0 ]; then
     # NB: match the *glob* "*PLACEHOLDER*", never the literal sentinel.
     # install.sh seds the sentinel globally, so a literal comparison here gets
